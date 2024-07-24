@@ -1,5 +1,10 @@
 # Angular custom form error message
 
+---
+Sources:
+- [Raji](https://www.youtube.com/watch?v=m-FbTyir0IM&list=WL&index=11&t=1s)
+---
+
 Custom error message stored in the customErrorMessages:
 ```typescript
 const customErrorMessages: Record<string, string> = {
