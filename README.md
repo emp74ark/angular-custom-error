@@ -1,27 +1,104 @@
-# AngularCustomError
+# Angular custom form error message
 
-This project was generated with [Angular CLI](https://github.com/angular/angular-cli) version 18.1.1.
+Custom error message stored in the customErrorMessages:
+```typescript
+const customErrorMessages: Record<string, string> = {
+  required: 'Required field',
+  email: 'It is not a valid email',
+  minlength: 'It is too short',
+  maxlength: 'It is too long',
+}
+```
 
-## Development server
+To get them in the component, create a custom injection token:
+```typescript
+const customErrorMessages: Record<string, string> = {
+  required: 'Required field',
+  email: 'It is not a valid email',
+  minlength: 'It is too short',
+  maxlength: 'It is too long',
+}
+```
 
-Run `ng serve` for a dev server. Navigate to `http://localhost:4200/`. The application will automatically reload if you change any of the source files.
+Error message component implements ControlValueAccessor, injects NgForm and custom error messages from the CUSTOM_ERRORS. Injection the DestroyRef necessary for unsubscribing via pipe. Methods writeValue, registerOnChange, registerOnTouched and setDisabledState have to be implemented but don't contain any logic.
 
-## Code scaffolding
+When an error occurs in Validator, it will be handled in this component.
+```typescript
+export class FormErrorMessageComponent implements ControlValueAccessor, OnInit {
+  private readonly control = inject(NgControl, {self: true});
+  private readonly errors = inject(CUSTOM_ERRORS);
+  private destroyRef = inject(DestroyRef);
 
-Run `ng generate component component-name` to generate a new component. You can also use `ng generate directive|pipe|service|class|guard|interface|enum|module`.
+  protected readonly error = signal('')
 
-## Build
+  constructor() {
+    this.control.valueAccessor = this;
+  }
 
-Run `ng build` to build the project. The build artifacts will be stored in the `dist/` directory.
+  ngOnInit(): void {
+    this.control.control?.events.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => {
+      if (this.control.invalid) {
+        const errorType = Object.keys(this.control.errors || {})?.[0];
+        this.error.set(this.errors[errorType])
+      } else {
+        this.error.set('')
+      }
+    })
+  }
 
-## Running unit tests
+  writeValue(obj: any): void {
+  }
 
-Run `ng test` to execute the unit tests via [Karma](https://karma-runner.github.io).
+  registerOnChange(fn: any): void {
+  }
 
-## Running end-to-end tests
+  registerOnTouched(fn: any): void {
+  }
 
-Run `ng e2e` to execute the end-to-end tests via a platform of your choice. To use this command, you need to first add a package that implements end-to-end testing capabilities.
+  setDisabledState?(isDisabled: boolean): void {
+  }
 
-## Further help
+}
+```
 
-To get more help on the Angular CLI use `ng help` or go check out the [Angular CLI Overview and Command Reference](https://angular.dev/tools/cli) page.
+Use custom error messages in the component:
+```typescript
+@Component({
+  // all other entries
+  providers: [
+    {provide: CUSTOM_ERRORS, useValue: customErrorMessages},
+  ],
+})
+export class SomeComponent implements OnInit {
+  constructor(
+    private fb: FormBuilder,
+  ) {
+  }
+
+  form: FormGroup;
+
+  ngOnInit(): void {
+    this.form = this.fb.group({
+      email: ['', [Validators.required, Validators.email]],
+      length: ['', [Validators.minLength(3), Validators.maxLength(10)]],
+    });
+  }
+}
+```
+
+Template:
+```angular2html
+<form [formGroup]="form">
+  <div class="form-control">
+    <label for="email">Email</label>
+    <input formControlName="email" id="email" type="email" name="email">
+    <app-form-error-message formControlName="email"></app-form-error-message>
+  </div>
+
+  <div class="form-control">
+    <label for="length">Text</label>
+    <input formControlName="length" id="length" type="text" name="length">
+    <app-form-error-message formControlName="length"></app-form-error-message>
+  </div>
+</form>
+```
